@@ -126,6 +126,10 @@
 
     <div class="chart-container">
         <div class="chart-wrapper">
+            <div class="chart-title">재무상태표 (박스 시각화)</div>
+            <canvas id="balanceSheetBox" width="800" height="400"></canvas>
+        </div>
+        <div class="chart-wrapper">
             <div class="chart-title">재무상태표</div>
             <canvas id="balanceSheet"></canvas>
         </div>
@@ -250,7 +254,10 @@
             console.log('Processed BS data:', bsData); // 처리된 재무상태표 데이터 로깅
             console.log('Processed IS data:', isData); // 처리된 손익계산서 데이터 로깅
 
-            // 재무상태표 차트 업데이트
+            // 재무상태표 박스 시각화
+            drawBalanceSheetBox(data.bs);
+            
+            // 재무상태표 차트
             if (charts.bs) charts.bs.destroy();
             charts.bs = new Chart(document.getElementById('balanceSheet'), {
                 type: 'bar',
@@ -561,6 +568,165 @@
                     }
                 }
             });
+        }
+
+        function drawBalanceSheetBox(bsData) {
+            const canvas = document.getElementById('balanceSheetBox');
+            const ctx = canvas.getContext('2d');
+            
+            // 캔버스 초기화
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            console.log('박스 시각화 데이터:', bsData); // 디버깅용
+            
+            // 데이터 분류
+            const currentAssets = []; // 유동자산
+            const nonCurrentAssets = []; // 비유동자산
+            const currentLiabilities = []; // 유동부채
+            const nonCurrentLiabilities = []; // 비유동부채
+            const equity = []; // 자본
+            
+            bsData.forEach(item => {
+                const amount = parseFloat(item.thstrm_amount);
+                console.log(`계정: ${item.account_nm}, 금액: ${amount}`); // 디버깅용
+                
+                // 정확한 매칭을 위해 정확한 계정명 확인
+                if (item.account_nm === '자산총계' || item.account_nm === '부채총계') {
+                    // 총계는 제외
+                } else if (item.account_nm === '유동자산') {
+                    currentAssets.push({ name: item.account_nm, amount: amount });
+                } else if (item.account_nm === '비유동자산') {
+                    nonCurrentAssets.push({ name: item.account_nm, amount: amount });
+                } else if (item.account_nm === '유동부채') {
+                    currentLiabilities.push({ name: item.account_nm, amount: amount });
+                } else if (item.account_nm === '비유동부채') {
+                    nonCurrentLiabilities.push({ name: item.account_nm, amount: amount });
+                } else if (item.account_nm.includes('자본') || item.account_nm.includes('주주') || item.account_nm.includes('이익잉여금') || item.account_nm.includes('자본금')) {
+                    equity.push({ name: item.account_nm, amount: amount });
+                }
+            });
+            
+            console.log('유동자산:', currentAssets); // 디버깅용
+            console.log('비유동자산:', nonCurrentAssets); // 디버깅용
+            console.log('유동부채:', currentLiabilities); // 디버깅용
+            console.log('비유동부채:', nonCurrentLiabilities); // 디버깅용
+            console.log('자본:', equity); // 디버깅용
+            
+            // 총액 계산
+            const totalCurrentAssets = currentAssets.reduce((sum, item) => sum + item.amount, 0);
+            const totalNonCurrentAssets = nonCurrentAssets.reduce((sum, item) => sum + item.amount, 0);
+            const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
+            
+            const totalCurrentLiabilities = currentLiabilities.reduce((sum, item) => sum + item.amount, 0);
+            const totalNonCurrentLiabilities = nonCurrentLiabilities.reduce((sum, item) => sum + item.amount, 0);
+            const totalLiabilities = totalCurrentLiabilities + totalNonCurrentLiabilities;
+            
+            const totalEquity = equity.reduce((sum, item) => sum + item.amount, 0);
+            
+            console.log('총 자산:', totalAssets); // 디버깅용
+            console.log('총 부채:', totalLiabilities); // 디버깅용
+            console.log('총 자본:', totalEquity); // 디버깅용
+            
+            // 영역 설정
+            const totalWidth = 800; // 캔버스 너비
+            const totalHeight = 300;
+            const startX = 50;
+            const startY = 50;
+            const gap = 40; // 간격
+            
+            // 자산 영역 (좌측)
+            const assetsWidth = (totalWidth - startX * 2 - gap) / 2;
+            const assetsX = startX;
+            const assetsY = startY;
+            const assetsHeight = totalHeight;
+            
+            // 자산 박스 (유동자산과 비유동자산으로 분할)
+            const currentAssetsHeight = assetsHeight / 2;
+            const nonCurrentAssetsHeight = assetsHeight / 2;
+            
+            // 유동자산 박스 (상단)
+            ctx.fillStyle = '#66BB6A'; // 밝은 녹색
+            ctx.fillRect(assetsX, assetsY, assetsWidth, currentAssetsHeight);
+            ctx.strokeStyle = '#2E7D32';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(assetsX, assetsY, assetsWidth, currentAssetsHeight);
+            
+            // 비유동자산 박스 (하단)
+            ctx.fillStyle = '#4CAF50'; // 진한 녹색
+            ctx.fillRect(assetsX, assetsY + currentAssetsHeight, assetsWidth, nonCurrentAssetsHeight);
+            ctx.strokeStyle = '#2E7D32';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(assetsX, assetsY + currentAssetsHeight, assetsWidth, nonCurrentAssetsHeight);
+            
+            // 유동자산 텍스트
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('유동자산', assetsX + assetsWidth/2, assetsY + currentAssetsHeight/2 - 15);
+            ctx.fillText(formatKoreanNumber(totalCurrentAssets), assetsX + assetsWidth/2, assetsY + currentAssetsHeight/2 + 15);
+            
+            // 비유동자산 텍스트
+            ctx.fillText('비유동자산', assetsX + assetsWidth/2, assetsY + currentAssetsHeight + nonCurrentAssetsHeight/2 - 15);
+            ctx.fillText(formatKoreanNumber(totalNonCurrentAssets), assetsX + assetsWidth/2, assetsY + currentAssetsHeight + nonCurrentAssetsHeight/2 + 15);
+            
+            // 부채+자본 영역 (우측)
+            const rightWidth = (totalWidth - startX * 2 - gap) / 2;
+            const rightX = startX + assetsWidth + gap;
+            const rightY = startY;
+            const rightHeight = totalHeight;
+            
+            // 부채와 자본 영역 (유동부채, 비유동부채, 자본으로 분할)
+            const currentLiabilitiesHeight = rightHeight / 3;
+            const nonCurrentLiabilitiesHeight = rightHeight / 3;
+            const equityHeight = rightHeight / 3;
+            
+            // 유동부채 박스 (상단)
+            if (totalCurrentLiabilities > 0) {
+                ctx.fillStyle = '#EF5350'; // 밝은 빨간색
+                ctx.fillRect(rightX, rightY, rightWidth, currentLiabilitiesHeight);
+                ctx.strokeStyle = '#C62828';
+                ctx.strokeRect(rightX, rightY, rightWidth, currentLiabilitiesHeight);
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('유동부채', rightX + rightWidth/2, rightY + currentLiabilitiesHeight/2 - 12);
+                ctx.fillText(formatKoreanNumber(totalCurrentLiabilities), rightX + rightWidth/2, rightY + currentLiabilitiesHeight/2 + 12);
+            }
+            
+            // 비유동부채 박스 (중간)
+            if (totalNonCurrentLiabilities > 0) {
+                const nonCurrentLiabilitiesY = rightY + currentLiabilitiesHeight;
+                ctx.fillStyle = '#F44336'; // 진한 빨간색
+                ctx.fillRect(rightX, nonCurrentLiabilitiesY, rightWidth, nonCurrentLiabilitiesHeight);
+                ctx.strokeStyle = '#C62828';
+                ctx.strokeRect(rightX, nonCurrentLiabilitiesY, rightWidth, nonCurrentLiabilitiesHeight);
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('비유동부채', rightX + rightWidth/2, nonCurrentLiabilitiesY + nonCurrentLiabilitiesHeight/2 - 12);
+                ctx.fillText(formatKoreanNumber(totalNonCurrentLiabilities), rightX + rightWidth/2, nonCurrentLiabilitiesY + nonCurrentLiabilitiesHeight/2 + 12);
+            }
+            
+            // 자본 박스 (하단)
+            if (totalEquity > 0) {
+                const equityY = rightY + currentLiabilitiesHeight + nonCurrentLiabilitiesHeight;
+                ctx.fillStyle = '#2196F3';
+                ctx.fillRect(rightX, equityY, rightWidth, equityHeight);
+                ctx.strokeStyle = '#1565C0';
+                ctx.strokeRect(rightX, equityY, rightWidth, equityHeight);
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('자본', rightX + rightWidth/2, equityY + equityHeight/2 - 12);
+                ctx.fillText(formatKoreanNumber(totalEquity), rightX + rightWidth/2, equityY + equityHeight/2 + 12);
+            }
         }
 
         function fetchFinancialData() {

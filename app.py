@@ -101,6 +101,7 @@ def get_financial_data():
                 }
             
             for item in data.get('list', []):
+                print(f"sj_div: {item['sj_div']}, account_nm: {item['account_nm']}")  # 모든 항목 로깅
                 if item['sj_div'] in ['BS', 'IS', 'CF', 'SC']:
                     try:
                         # 금액 데이터 처리
@@ -182,4 +183,4 @@ def explain_financial():
     return jsonify({'explanation': explanation})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0') 
+    app.run(host='0.0.0.0', port=5003) 
